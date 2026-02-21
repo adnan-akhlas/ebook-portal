@@ -10,7 +10,7 @@ export async function registerUser(
   req: Request,
   res: Response,
   next: NextFunction,
-) {
+): Promise<void> {
   const { name, email, password } = req.body;
 
   if (!name || !email || !password) {
@@ -43,12 +43,54 @@ export async function registerUser(
       expiresIn: "7d",
     });
 
-    res.json({ message: "User created successfully.", accessToken: token });
+    res
+      .status(httpStatus.CREATED)
+      .json({ message: "User created successfully.", accessToken: token });
   } catch (error: unknown) {
     return next(
       createHttpError(
         httpStatus.INTERNAL_SERVER_ERROR,
         "Error while creating user.",
+      ),
+    );
+  }
+}
+
+export async function login(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    next(createHttpError(httpStatus.BAD_REQUEST, "All fields are required."));
+  }
+  try {
+    const user = await UserModel.findOne({ email });
+    if (!user) {
+      return next(createHttpError(httpStatus.NOT_FOUND, "User not found."));
+    }
+
+    const isPasswordOK = await bcrypt.compare(password, user.password);
+    if (!isPasswordOK) {
+      return next(
+        createHttpError(httpStatus.UNAUTHORIZED, "Invalid user credentials"),
+      );
+    }
+
+    const accessToken = sign({ sub: user.id }, env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+    res.json({
+      message: "Login successfully.",
+      accessToken,
+    });
+  } catch (error: unknown) {
+    return next(
+      createHttpError(
+        httpStatus.INTERNAL_SERVER_ERROR,
+        "Error occured while login.",
       ),
     );
   }
