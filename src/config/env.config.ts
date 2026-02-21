@@ -24,4 +24,6 @@ const loadEnv = (): IEnv => {
   return env;
 };
 
-export const env = Object.freeze(loadEnv());
+const env = Object.freeze(loadEnv());
+
+export default env;

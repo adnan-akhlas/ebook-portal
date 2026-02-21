@@ -1,7 +1,7 @@
 import http from "http";
 import { Server } from "node:http";
 import app from "./app";
-import { env } from "./config/env.config";
+import env from "./config/env.config";
 import connectDB from "./config/db.config";
 
 const port = env.PORT;
