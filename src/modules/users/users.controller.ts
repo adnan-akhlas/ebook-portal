@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 import env from "../../config/env.config";
 import { sign } from "jsonwebtoken";
 
-export async function createUser(
+export async function registerUser(
   req: Request,
   res: Response,
   next: NextFunction,
@@ -21,24 +21,35 @@ export async function createUser(
     return next(error);
   }
 
-  const isUserExist = await UserModel.findOne({ email });
+  try {
+    const isUserExist = await UserModel.findOne({ email });
 
-  if (isUserExist) {
-    const error = createHttpError(
-      httpStatus.BAD_REQUEST,
-      "User already exists with this email.",
+    if (isUserExist) {
+      const error = createHttpError(
+        httpStatus.BAD_REQUEST,
+        "User already exists with this email.",
+      );
+      return next(error);
+    }
+    const hashPassword = await bcrypt.hash(password, Number(env.BCRYPT_SALT));
+
+    const newUser = await UserModel.create({
+      name,
+      email,
+      password: hashPassword,
+    });
+
+    const token = sign({ sub: newUser.id }, env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    res.json({ message: "User created successfully.", accessToken: token });
+  } catch (error: unknown) {
+    return next(
+      createHttpError(
+        httpStatus.INTERNAL_SERVER_ERROR,
+        "Error while creating user.",
+      ),
     );
   }
-
-  const hashPassword = await bcrypt.hash(password, Number(env.BCRYPT_SALT));
-
-  const newUser = await UserModel.create({
-    name,
-    email,
-    password: hashPassword,
-  });
-
-  const token = sign({ sub: newUser.id }, env.JWT_SECRET, { expiresIn: "7d" });
-
-  res.json({ message: "User created successfully.", accessToken: token });
 }
