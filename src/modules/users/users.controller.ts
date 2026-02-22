@@ -47,12 +47,7 @@ export async function registerUser(
       .status(httpStatus.CREATED)
       .json({ message: "User created successfully.", accessToken: token });
   } catch (error: unknown) {
-    return next(
-      createHttpError(
-        httpStatus.INTERNAL_SERVER_ERROR,
-        "Error while creating user.",
-      ),
-    );
+    return next(error);
   }
 }
 
@@ -87,11 +82,6 @@ export async function login(
       accessToken,
     });
   } catch (error: unknown) {
-    return next(
-      createHttpError(
-        httpStatus.INTERNAL_SERVER_ERROR,
-        "Error occured while login.",
-      ),
-    );
+    return next(error);
   }
 }

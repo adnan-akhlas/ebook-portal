@@ -13,8 +13,8 @@ export async function addBook(
 ): Promise<void> {
   try {
     const { title, genre } = req.body;
+    const userId = req.user.sub as string;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-    console.log(files);
     const coverImageFile = files?.coverImage?.[0];
 
     if (!coverImageFile) {
@@ -71,26 +71,22 @@ export async function addBook(
       },
     );
 
+    await fs.promises.unlink(bookFilePath);
+    await fs.promises.unlink(coverImageFilePath);
+
     const newBook = await BookModel.create({
       title,
       genre,
       coverImage: imageFileUploadResult.secure_url,
       file: bookFileUploadResult.secure_url,
-      author: "699b6391195644431e89e56a",
+      author: userId,
     });
-
-    await fs.promises.unlink(bookFilePath);
-    await fs.promises.unlink(coverImageFilePath);
 
     res
       .status(httpStatus.CREATED)
-      .json({ message: "Book added successfully.", bookId: newBook._id });
+      .json({ message: "Book added successfully.", bookId: newBook.id });
   } catch (error: unknown) {
-    next(
-      createHttpError(
-        httpStatus.BAD_REQUEST,
-        "Error occured while creating book.",
-      ),
-    );
+    console.log(error);
+    next(error);
   }
 }
