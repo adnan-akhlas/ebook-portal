@@ -1,11 +1,11 @@
 import express from "express";
-import globalError from "./middleware/globalError.middleware";
-import UserRouter from "./modules/users/users.router";
 import httpStatus from "http-status-codes";
+import globalError from "./middleware/globalError.middleware";
+import router from "./router";
 
 const app = express();
 app.use(express.json());
-app.use("/api/users", UserRouter);
+app.use("/api", router);
 
 // Get - Health check route to confirm server is running
 app.get("/", (req, res): void => {
