@@ -3,7 +3,7 @@ import { User } from "../users/users.types";
 export interface IBook {
   _id: string;
   title: string;
-  author: User;
+  author: User | string;
   genre: string;
   coverImage: string;
   file: string;

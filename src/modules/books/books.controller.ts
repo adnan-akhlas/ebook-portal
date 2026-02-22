@@ -1,18 +1,90 @@
 import { NextFunction, Request, Response } from "express";
 import createHttpError from "http-errors";
 import httpStatus from "http-status-codes";
+import fs from "node:fs";
+import path from "node:path";
+import cloudinary from "../../config/cloudinary.config";
+import { BookModel } from "./books.model";
 
 export async function addBook(
   req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  // const {} = req.body;
-  console.log("files", req.files);
   try {
+    const { title, genre } = req.body;
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    console.log(files);
+    const coverImageFile = files?.coverImage?.[0];
+
+    if (!coverImageFile) {
+      return next(
+        createHttpError(httpStatus.BAD_REQUEST, "Cover image is required."),
+      );
+    }
+
+    const coverImageFileName = coverImageFile.filename;
+    const coverImageFilePath = path.join(
+      __dirname,
+      "../../../public/data/uploads",
+      coverImageFileName,
+    );
+
+    const imageFileUploadResult = await cloudinary.uploader.upload(
+      coverImageFilePath,
+      {
+        filename_override: coverImageFileName,
+        folder: "book_covers",
+        format: "webp",
+        overwrite: true,
+        unique_filename: true,
+        use_filename: true,
+        transformation: [{ quality: "auto" }],
+      },
+    );
+
+    const bookFile = files?.file?.[0];
+
+    if (!bookFile) {
+      return next(
+        createHttpError(httpStatus.BAD_REQUEST, "Book pdf is required"),
+      );
+    }
+
+    const bookFileName = bookFile.filename;
+    const bookFilePath = path.join(
+      __dirname,
+      "../../../public/data/uploads",
+      bookFileName,
+    );
+
+    const bookFileUploadResult = await cloudinary.uploader.upload(
+      bookFilePath,
+      {
+        filename_override: bookFileName,
+        resource_type: "raw",
+        format: "pdf",
+        use_filename: true,
+        unique_filename: true,
+        overwrite: true,
+        folder: "book_pdfs",
+      },
+    );
+
+    const newBook = await BookModel.create({
+      title,
+      genre,
+      coverImage: imageFileUploadResult.secure_url,
+      file: bookFileUploadResult.secure_url,
+      author: "699b6391195644431e89e56a",
+    });
+
+    await fs.promises.unlink(bookFilePath);
+    await fs.promises.unlink(coverImageFilePath);
+
     res
       .status(httpStatus.CREATED)
-      .json({ message: "Book added successfully." });
+      .json({ message: "Book added successfully.", bookId: newBook._id });
   } catch (error: unknown) {
     next(
       createHttpError(
