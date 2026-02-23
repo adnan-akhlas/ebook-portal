@@ -174,13 +174,10 @@ export async function updateBook(
       pdf = pdfUploadResult.secure_url;
       pdfPublicId = pdfUploadResult.public_id;
       await fs.promises.unlink(pdfFilePath);
-      const destroyResult = await cloudinary.uploader.destroy(
-        book.filePublicId,
-        {
-          resource_type: "raw",
-          invalidate: true,
-        },
-      );
+      await cloudinary.uploader.destroy(book.filePublicId, {
+        resource_type: "raw",
+        invalidate: true,
+      });
     }
     const updateBook = {
       title: title || book.title,
@@ -225,6 +222,44 @@ export async function getBook(
       return next(error);
     }
     res.json({ message: "Book retrieved successfully.", data: book });
+  } catch (error: unknown) {
+    return next(error);
+  }
+}
+
+export async function deleteBook(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { id } = req.params;
+    const userId = req.user.sub as string;
+    const book = await BookModel.findById(id);
+    if (!book) {
+      const error = createHttpError(httpStatus.NOT_FOUND, "Book not found.");
+      return next(error);
+    }
+    if (book.author.toString() !== userId) {
+      const error = createHttpError(
+        httpStatus.FORBIDDEN,
+        "Only author can delete the book.",
+      );
+      return next(error);
+    }
+    await BookModel.findByIdAndDelete(id);
+    await cloudinary.uploader.destroy(book.coverImagePublicId, {
+      resource_type: "image",
+      invalidate: true,
+    });
+    await cloudinary.uploader.destroy(book.filePublicId, {
+      resource_type: "raw",
+      invalidate: true,
+    });
+
+    res
+      .status(httpStatus.NO_CONTENT)
+      .json({ message: "Book deleted successfully." });
   } catch (error: unknown) {
     return next(error);
   }
