@@ -5,7 +5,6 @@ import fs from "node:fs";
 import path from "node:path";
 import cloudinary from "../../config/cloudinary.config";
 import { BookModel } from "./books.model";
-import { IBook } from "./books.types";
 
 export async function addBook(
   req: Request,
@@ -148,13 +147,10 @@ export async function updateBook(
       image = imageUploadResult.secure_url;
       imagePublicId = imageUploadResult.public_id;
       await fs.promises.unlink(coverImageFilePath);
-      const destroyResult = await cloudinary.uploader.destroy(
-        book.coverImagePublicId,
-        {
-          resource_type: "image",
-          invalidate: true,
-        },
-      );
+      await cloudinary.uploader.destroy(book.coverImagePublicId, {
+        resource_type: "image",
+        invalidate: true,
+      });
     }
 
     let pdf: string | File = book.file;
@@ -196,8 +192,39 @@ export async function updateBook(
     };
     const newBook = await BookModel.findOneAndUpdate({ id }, updateBook, {
       new: true,
-    });
-    res.json({ message: "Book updated successfully.", newBook });
+    }).select("-_id");
+    res.json({ message: "Book updated successfully.", data: newBook });
+  } catch (error: unknown) {
+    return next(error);
+  }
+}
+
+export async function getBooks(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const books = await BookModel.find({});
+    res.json({ message: "Books retrieved successfully.", data: books });
+  } catch (error: unknown) {
+    return next(error);
+  }
+}
+
+export async function getBook(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { id } = req.params;
+    const book = await BookModel.findById(id);
+    if (!book) {
+      const error = createHttpError(httpStatus.NOT_FOUND, "Book not found.");
+      return next(error);
+    }
+    res.json({ message: "Book retrieved successfully.", data: book });
   } catch (error: unknown) {
     return next(error);
   }
